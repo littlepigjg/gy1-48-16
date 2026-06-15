@@ -1,4 +1,4 @@
-import { TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, SURFACE_Y, TILE_TYPES, TILE_COLORS, DEPTH_BONUS_MULTIPLIER } from './constants.js';
+import { TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, SURFACE_Y, TILE_TYPES, TILE_COLORS, DEPTH_BONUS_MULTIPLIER, BEACON_DROP_CHANCE, BEACON_DROP_CHANCE_BONUS } from './constants.js';
 import { World } from './world.js';
 import { Player } from './player.js';
 import { EnemyManager } from './enemies.js';
@@ -118,8 +118,18 @@ export class Game {
         case 'T':
           this.tryTeleport();
           break;
+        case 'b':
+        case 'B':
+          this.tryPlaceBeacon();
+          break;
+        case 'm':
+        case 'M':
+          this.toggleBeaconMenu();
+          break;
         case 'Escape':
-          if (this.ui.isShopOpen()) {
+          if (this.ui.isBeaconMenuOpen()) {
+            this.ui.closeBeaconMenu();
+          } else if (this.ui.isShopOpen()) {
             this.ui.closeShop();
           } else {
             this.ui.openShop();
@@ -185,6 +195,43 @@ export class Game {
     }
   }
 
+  tryPlaceBeacon() {
+    if (!this.running || this.paused) return;
+    
+    const result = this.teleport.placeBeacon(this.player);
+    if (result.success) {
+      this.ui.showWarning(`📍 信标「${result.beacon.name}」已放置！深度: ${result.beacon.depth}m`, 2000, 'text-cyan-300');
+      this.particles.spawnCircle(this.player.x, this.player.y, result.beacon.color, 20, 4);
+    } else {
+      this.ui.showWarning(`放置失败: ${result.reason}`, 2000);
+    }
+  }
+
+  tryBeaconTeleport(beaconIndex) {
+    if (!this.running) return;
+
+    const result = this.teleport.startBeaconTeleport(this.player, beaconIndex);
+    if (result.success) {
+      const hasEnemies = this.teleport.hasEnemiesNearBeacon(beaconIndex, this.enemies.enemies);
+      if (hasEnemies) {
+        this.ui.showWarning(`⚠️ 警告: 目标附近有敌人！传送启动中...消耗 $${result.cost}`, 2000, 'text-red-300');
+      } else {
+        this.ui.showWarning(`传送至「${result.beacon.name}」启动中...消耗 $${result.cost}`, 2000, 'text-cyan-300');
+      }
+      this.particles.spawnCircle(this.player.x, this.player.y, result.beacon.color, 15, 4);
+    } else {
+      this.ui.showWarning(`传送失败: ${result.reason}`, 2000);
+    }
+  }
+
+  toggleBeaconMenu() {
+    if (this.ui.isBeaconMenuOpen()) {
+      this.ui.closeBeaconMenu();
+    } else {
+      this.ui.openBeaconMenu();
+    }
+  }
+
   start() {
     this.running = true;
     this.lastTime = performance.now();
@@ -227,13 +274,20 @@ export class Game {
   }
 
   update(dt) {
+    this.teleport.setMaxBeacons(this.player.upgrades.beacon);
+
     if (!this.teleport.isTeleporting()) {
       this.player.update(dt, this.world, this.input);
     }
 
-    this.teleport.update(dt, this.player, this.world, this.particles, (cost) => {
-      this.ui.showWarning(`✨ 传送成功！消耗 $${cost}`, 2000, 'text-cyan-300');
-      this.particles.spawnCircle(this.player.x, this.player.y, '#FFD700', 25, 5);
+    this.teleport.update(dt, this.player, this.world, this.particles, (cost, beacon) => {
+      if (beacon) {
+        this.ui.showWarning(`✨ 传送至「${beacon.name}」成功！消耗 $${cost}`, 2000, 'text-cyan-300');
+        this.particles.spawnCircle(this.player.x, this.player.y, beacon.color, 25, 5);
+      } else {
+        this.ui.showWarning(`✨ 传送成功！消耗 $${cost}`, 2000, 'text-cyan-300');
+        this.particles.spawnCircle(this.player.x, this.player.y, '#FFD700', 25, 5);
+      }
       this.renderer.shake(2, 0.3);
     });
 
@@ -293,6 +347,23 @@ export class Game {
               6,
               2
             );
+
+            const depth = this.player.tileY - SURFACE_Y;
+            const maxDepth = WORLD_HEIGHT - SURFACE_Y;
+            const depthRatio = depth / maxDepth;
+            const dropChance = BEACON_DROP_CHANCE + depthRatio * BEACON_DROP_CHANCE_BONUS;
+            
+            if (Math.random() < dropChance) {
+              this.player.beacons++;
+              this.ui.showWarning('✨ 获得信标！按 B 键放置', 2000, 'text-cyan-300');
+              this.particles.spawnCircle(
+                target.x * TILE_SIZE + TILE_SIZE / 2,
+                target.y * TILE_SIZE + TILE_SIZE / 2,
+                '#00CED1',
+                15,
+                3
+              );
+            }
           } else {
             this.ui.showWarning('📦 货仓已满！返回地面出售矿石', 2000);
           }

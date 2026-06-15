@@ -21,7 +21,8 @@ export class Player {
       oxygen_tank: 0,
       cooling: 0,
       armor: 0,
-      weapon: 0
+      weapon: 0,
+      beacon: 0
     };
 
     this.maxFuel = 100 + this.upgrades.fuel_tank * 40;
@@ -55,6 +56,7 @@ export class Player {
       ruby: 0,
       diamond: 0
     };
+    this.beacons = 0;
 
     this.maxDepth = 0;
     this.damageFlash = 0;

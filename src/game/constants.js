@@ -140,6 +140,13 @@ export const UPGRADE_DEFS = {
     description: '提升攻击力和射速',
     maxLevel: 5,
     costs: [350, 800, 2000, 5000, 12000]
+  },
+  beacon: {
+    name: '信标系统',
+    icon: '📍',
+    description: '增加信标槽位，可记忆更多传送点',
+    maxLevel: 3,
+    costs: [500, 1500, 4000]
   }
 };
 
@@ -149,3 +156,11 @@ export const TELEPORT_COST_BASE = 30;
 export const TELEPORT_COST_PER_100M = 20;
 export const TELEPORT_DURATION = 2.5;
 export const TELEPORT_COOLDOWN = 5;
+
+export const BEACON_MAX_SLOTS_BASE = 3;
+export const BEACON_COST_DISCOUNT = 0.8;
+export const BEACON_ENEMY_DETECT_RADIUS = 10;
+export const BEACON_DROP_CHANCE = 0.005;
+export const BEACON_DROP_CHANCE_BONUS = 0.002;
+
+export const BEACON_COLORS = ['#00CED1', '#FF69B4', '#32CD32', '#FFD700', '#FF6347', '#9370DB'];

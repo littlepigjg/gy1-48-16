@@ -60,6 +60,9 @@ export class Renderer {
     particles.render(this.ctx, (x, y) => this.worldToScreen(x, y));
     this.renderBullets(bullets);
     this.renderEnemies(enemies);
+    if (teleportSystem) {
+      this.renderBeacons(teleportSystem);
+    }
     this.renderPlayer(player, teleportSystem);
     this.renderDarkness(player);
     this.renderBaseArrow(baseBuildingX, player);
@@ -598,5 +601,53 @@ export class Renderer {
 
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  renderBeacons(teleportSystem) {
+    const beacons = teleportSystem.beacons;
+    if (!beacons || beacons.length === 0) return;
+
+    const time = Date.now() * 0.001;
+
+    for (let i = 0; i < beacons.length; i++) {
+      const beacon = beacons[i];
+      const screen = this.worldToScreen(beacon.x, beacon.y);
+
+      if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
+      if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+
+      const pulse = 1 + Math.sin(time * 2 + i) * 0.15;
+      const size = TILE_SIZE * 0.8 * pulse;
+
+      this.ctx.shadowColor = beacon.color;
+      this.ctx.shadowBlur = 20 + Math.sin(time * 3 + i) * 5;
+
+      this.ctx.strokeStyle = beacon.color;
+      this.ctx.lineWidth = 3;
+      this.ctx.beginPath();
+      this.ctx.arc(screen.x, screen.y, size / 2, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = beacon.color;
+      this.ctx.globalAlpha = 0.3;
+      this.ctx.beginPath();
+      this.ctx.arc(screen.x, screen.y, size / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.globalAlpha = 1;
+
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.shadowBlur = 10;
+      this.ctx.font = 'bold 20px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('📍', screen.x, screen.y + 7);
+
+      this.ctx.shadowBlur = 0;
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      this.ctx.font = 'bold 10px sans-serif';
+      const labelWidth = beacon.name.length * 7 + 10;
+      this.ctx.fillRect(screen.x - labelWidth / 2, screen.y - size / 2 - 18, labelWidth, 14);
+      this.ctx.fillStyle = beacon.color;
+      this.ctx.fillText(beacon.name, screen.x, screen.y - size / 2 - 8);
+    }
   }
 }
