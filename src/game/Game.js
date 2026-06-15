@@ -7,6 +7,7 @@ import { UIManager } from './ui.js';
 import { ParticleSystem } from './particles.js';
 import { HazardManager } from './hazards.js';
 import { TeleportSystem } from './teleport.js';
+import { BeaconSystem } from './beacon.js';
 
 export class Game {
   constructor(canvas) {
@@ -37,6 +38,7 @@ export class Game {
     this.particles = new ParticleSystem();
     this.hazards = new HazardManager();
     this.teleport = new TeleportSystem();
+    this.beacon = new BeaconSystem();
     this.collapseTimer = 0;
 
     this.baseBuildingX = Math.floor(WORLD_WIDTH / 2) - 3;
@@ -71,6 +73,7 @@ export class Game {
     this.particles.clear();
     this.hazards.clear();
     this.teleport = new TeleportSystem();
+    this.beacon = new BeaconSystem();
     this.stats = { blocksDug: 0, enemiesKilled: 0 };
     this.collapseTimer = 0;
   }
@@ -197,8 +200,19 @@ export class Game {
 
   tryPlaceBeacon() {
     if (!this.running || this.paused) return;
-    
-    const result = this.teleport.placeBeacon(this.player);
+
+    const check = this.beacon.canPlaceBeacon(this.player);
+    if (!check.can) {
+      this.ui.showWarning(`放置失败: ${check.reason}`, 2000);
+      return;
+    }
+
+    const depth = this.player.tileY - SURFACE_Y;
+    const name = prompt(`为信标命名（深度 ${depth}m）:`, `信标 ${this.beacon.getBeaconCount() + 1}`);
+    if (name === null) return;
+
+    const finalName = name.trim() || `信标 ${this.beacon.getBeaconCount() + 1}`;
+    const result = this.beacon.placeBeacon(this.player, finalName);
     if (result.success) {
       this.ui.showWarning(`📍 信标「${result.beacon.name}」已放置！深度: ${result.beacon.depth}m`, 2000, 'text-cyan-300');
       this.particles.spawnCircle(this.player.x, this.player.y, result.beacon.color, 20, 4);
@@ -210,9 +224,15 @@ export class Game {
   tryBeaconTeleport(beaconIndex) {
     if (!this.running) return;
 
-    const result = this.teleport.startBeaconTeleport(this.player, beaconIndex);
+    const beaconCheck = this.beacon.canTeleportToBeacon(this.player, beaconIndex);
+    if (!beaconCheck.can) {
+      this.ui.showWarning(`传送失败: ${beaconCheck.reason}`, 2000);
+      return;
+    }
+
+    const result = this.teleport.startBeaconTeleport(this.player, beaconCheck.beacon, beaconCheck.cost);
     if (result.success) {
-      const hasEnemies = this.teleport.hasEnemiesNearBeacon(beaconIndex, this.enemies.enemies);
+      const hasEnemies = this.beacon.hasEnemiesNearBeacon(beaconIndex, this.enemies.enemies);
       if (hasEnemies) {
         this.ui.showWarning(`⚠️ 警告: 目标附近有敌人！传送启动中...消耗 $${result.cost}`, 2000, 'text-red-300');
       } else {
@@ -260,7 +280,8 @@ export class Game {
       this.particles,
       this.baseBuildingX,
       this.hazards,
-      this.teleport
+      this.teleport,
+      this.beacon
     );
 
     this.ui.updateHUD();
@@ -274,7 +295,7 @@ export class Game {
   }
 
   update(dt) {
-    this.teleport.setMaxBeacons(this.player.upgrades.beacon);
+    this.beacon.setMaxBeacons(this.player.upgrades.beacon);
 
     if (!this.teleport.isTeleporting()) {
       this.player.update(dt, this.world, this.input);

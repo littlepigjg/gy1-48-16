@@ -161,13 +161,12 @@ export class UIManager {
 
   updateBeaconUI() {
     const p = this.game.player;
-    const tele = this.game.teleport;
-    const depth = Math.max(0, p.tileY - SURFACE_Y);
+    const beacon = this.game.beacon;
 
-    document.getElementById('beaconCount').textContent = p.beacons;
+    document.getElementById('beaconCount').textContent = `x${p.beacons}`;
 
     const placeBtn = document.getElementById('placeBeaconBtn');
-    const canPlace = tele.canPlaceBeacon(p);
+    const canPlace = beacon.canPlaceBeacon(p);
     if (canPlace.can) {
       placeBtn.style.opacity = '1';
       placeBtn.style.cursor = 'pointer';
@@ -197,27 +196,29 @@ export class UIManager {
   }
 
   updateBeaconList() {
+    const beacon = this.game.beacon;
     const tele = this.game.teleport;
     const p = this.game.player;
     const enemies = this.game.enemies ? this.game.enemies.enemies : [];
     const currentDepth = Math.max(0, p.tileY - SURFACE_Y);
 
     document.getElementById('beaconItemCount').textContent = p.beacons;
-    document.getElementById('beaconSlots').textContent = `${tele.getBeaconCount()}/${tele.getMaxBeacons()}`;
+    document.getElementById('beaconSlots').textContent = `${beacon.getBeaconCount()}/${beacon.getMaxBeacons()}`;
 
     const listEl = document.getElementById('beaconList');
     listEl.innerHTML = '';
 
-    if (tele.beacons.length === 0) {
+    if (beacon.beacons.length === 0) {
       listEl.innerHTML = '<div class="text-gray-400 text-center py-8">还没有放置任何信标<br><span class="text-sm">在地下使用 B 键放置信标</span></div>';
       return;
     }
 
-    for (let i = 0; i < tele.beacons.length; i++) {
-      const beacon = tele.beacons[i];
-      const enemyCount = tele.getBeaconEnemyCount(i, enemies);
-      const cost = tele.calculateBeaconCost(currentDepth, beacon.depth);
+    for (let i = 0; i < beacon.beacons.length; i++) {
+      const b = beacon.beacons[i];
+      const enemyCount = beacon.getBeaconEnemyCount(i, enemies);
+      const cost = beacon.calculateBeaconCost(currentDepth, b.depth);
       const hasEnemies = enemyCount > 0;
+      const canTeleport = p.gold >= cost && !tele.isTeleporting() && tele.cooldown <= 0;
 
       const div = document.createElement('div');
       div.className = `bg-black/40 rounded-lg p-4 border-2 transition-all ${hasEnemies ? 'border-red-500/50' : 'border-cyan-700/50'}`;
@@ -227,25 +228,25 @@ export class UIManager {
           <div class="flex items-center gap-2">
             <span class="text-2xl">📍</span>
             <div>
-              <div class="text-cyan-300 font-bold text-lg" style="color: ${beacon.color}">${beacon.name}</div>
-              <div class="text-gray-400 text-xs">深度: ${beacon.depth}m</div>
+              <div class="font-bold text-lg" style="color: ${b.color}">${b.name}</div>
+              <div class="text-gray-400 text-xs">深度: ${b.depth}m</div>
             </div>
           </div>
           ${hasEnemies ? `<div class="text-red-400 text-xs font-bold animate-pulse">⚠️ 附近有敌人 (${enemyCount})</div>` : '<div class="text-green-400 text-xs">✓ 安全</div>'}
         </div>
         <div class="flex gap-2 mt-3">
           <button class="flex-1 py-2 px-3 rounded text-sm font-bold transition-all ${
-            p.gold >= cost && !tele.isTeleporting() && tele.cooldown <= 0
+            canTeleport
               ? 'bg-cyan-700 hover:bg-cyan-600 text-white border border-cyan-500'
               : 'bg-gray-700 text-gray-500 cursor-not-allowed border border-gray-600'
-          }" data-teleport="${i}" ${(p.gold < cost || tele.isTeleporting() || tele.cooldown > 0) ? 'disabled' : ''}>
+          }" data-teleport="${i}" ${!canTeleport ? 'disabled' : ''}>
             传送 ($${cost})
           </button>
           <button class="py-2 px-3 rounded text-sm font-bold bg-yellow-700 hover:bg-yellow-600 text-white border border-yellow-500 transition-all" data-rename="${i}">
             重命名
           </button>
           <button class="py-2 px-3 rounded text-sm font-bold bg-red-700 hover:bg-red-600 text-white border border-red-500 transition-all" data-remove="${i}">
-            删除
+            回收
           </button>
         </div>
       `;
@@ -264,10 +265,10 @@ export class UIManager {
     listEl.querySelectorAll('button[data-rename]').forEach(btn => {
       btn.addEventListener('click', () => {
         const index = parseInt(btn.dataset.rename);
-        const beacon = tele.beacons[index];
-        const newName = prompt('输入新的信标名称:', beacon.name);
+        const b = beacon.beacons[index];
+        const newName = prompt('输入新的信标名称:', b.name);
         if (newName !== null && newName.trim() !== '') {
-          tele.renameBeacon(index, newName.trim());
+          beacon.renameBeacon(index, newName.trim());
           this.updateBeaconList();
         }
       });
@@ -276,8 +277,10 @@ export class UIManager {
     listEl.querySelectorAll('button[data-remove]').forEach(btn => {
       btn.addEventListener('click', () => {
         const index = parseInt(btn.dataset.remove);
-        if (confirm('确定要删除这个信标吗？')) {
-          tele.removeBeacon(index);
+        const b = beacon.beacons[index];
+        if (confirm(`回收信标「${b.name}」？信标物品将归还到背包`)) {
+          beacon.removeBeacon(index, this.game.player);
+          this.showWarning(`📍 信标「${b.name}」已回收，物品已归还`, 1500, 'text-cyan-300');
           this.updateBeaconList();
         }
       });

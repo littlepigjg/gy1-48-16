@@ -42,7 +42,7 @@ export class Renderer {
     return { x: sx, y: sy };
   }
 
-  render(dt, world, player, enemies, bullets, particles, baseBuildingX, hazards = null, teleportSystem = null) {
+  render(dt, world, player, enemies, bullets, particles, baseBuildingX, hazards = null, teleportSystem = null, beaconSystem = null) {
     if (this.shakeTime > 0) {
       this.shakeTime -= dt;
       if (this.shakeTime <= 0) this.shakeStrength = 0;
@@ -60,8 +60,8 @@ export class Renderer {
     particles.render(this.ctx, (x, y) => this.worldToScreen(x, y));
     this.renderBullets(bullets);
     this.renderEnemies(enemies);
-    if (teleportSystem) {
-      this.renderBeacons(teleportSystem);
+    if (beaconSystem) {
+      this.renderBeacons(beaconSystem);
     }
     this.renderPlayer(player, teleportSystem);
     this.renderDarkness(player);
@@ -603,8 +603,8 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  renderBeacons(teleportSystem) {
-    const beacons = teleportSystem.beacons;
+  renderBeacons(beaconSystem) {
+    const beacons = beaconSystem.beacons;
     if (!beacons || beacons.length === 0) return;
 
     const time = Date.now() * 0.001;
