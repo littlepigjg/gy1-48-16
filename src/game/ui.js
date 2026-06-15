@@ -164,6 +164,7 @@ export class UIManager {
     const beacon = this.game.beacon;
 
     document.getElementById('beaconCount').textContent = `x${p.beacons}`;
+    document.getElementById('beaconItemBig').textContent = p.beacons;
 
     const placeBtn = document.getElementById('placeBeaconBtn');
     const canPlace = beacon.canPlaceBeacon(p);
